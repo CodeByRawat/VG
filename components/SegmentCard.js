@@ -1,7 +1,14 @@
 'use client';
 
-export default function SegmentCard({ segment, onPromptChange, onRewrite, onDownload }) {
+export default function SegmentCard({
+  segment,
+  onPromptChange,
+  onRewrite,
+  onGenerateImage,
+  onDownload,
+}) {
   const { timestamp, narration, prompt, isRewriting, status, error, image } = segment;
+  const isGenerating = status === 'generating';
 
   return (
     <div className="bg-panel border border-border rounded-lg p-4 flex flex-col gap-3">
@@ -29,14 +36,25 @@ export default function SegmentCard({ segment, onPromptChange, onRewrite, onDown
         />
       </div>
 
-      <button
-        type="button"
-        onClick={() => onRewrite(timestamp)}
-        disabled={isRewriting}
-        className="self-start text-xs px-3 py-1.5 rounded-md border border-border text-text hover:border-accent disabled:opacity-50 disabled:cursor-not-allowed"
-      >
-        {isRewriting ? 'Rewriting…' : 'Rewrite this line'}
-      </button>
+      <div className="flex flex-wrap gap-2">
+        <button
+          type="button"
+          onClick={() => onRewrite(timestamp)}
+          disabled={isRewriting}
+          className="text-xs px-3 py-1.5 rounded-md border border-border text-text hover:border-accent disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          {isRewriting ? 'Rewriting…' : 'Rewrite this line'}
+        </button>
+
+        <button
+          type="button"
+          onClick={() => onGenerateImage(timestamp)}
+          disabled={!prompt || !prompt.trim() || isGenerating}
+          className="text-xs px-3 py-1.5 rounded-md bg-accent text-bg font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          {isGenerating ? 'Generating…' : image ? 'Regenerate image' : 'Generate image'}
+        </button>
+      </div>
 
       {error && <p className="text-xs text-red-400">{error}</p>}
 

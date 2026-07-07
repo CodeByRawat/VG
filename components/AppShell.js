@@ -130,6 +130,46 @@ export default function AppShell({ passwordRequired, initialAuthed }) {
     }
   }
 
+  async function generateImageForSegment(seg) {
+    setSegments((prev) =>
+      prev.map((s) => (s.timestamp === seg.timestamp ? { ...s, status: 'generating', error: null } : s))
+    );
+
+    try {
+      const res = await fetch('/api/generate-image', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          prompt: STYLE_PREFIX + seg.prompt,
+          quality,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setSegments((prev) =>
+          prev.map((s) =>
+            s.timestamp === seg.timestamp
+              ? { ...s, status: 'error', error: data.error || 'Generation failed' }
+              : s
+          )
+        );
+        return;
+      }
+      const padded = await padImageTo16x9(data.image);
+      setSegments((prev) =>
+        prev.map((s) => (s.timestamp === seg.timestamp ? { ...s, status: 'done', image: padded } : s))
+      );
+    } catch (err) {
+      setSegments((prev) =>
+        prev.map((s) =>
+          s.timestamp === seg.timestamp
+            ? { ...s, status: 'error', error: err.message || 'Network error' }
+            : s
+        )
+      );
+    }
+  }
+
   async function handleGenerateAll() {
     if (segments.length === 0) return;
     setGlobalError(null);
@@ -137,51 +177,18 @@ export default function AppShell({ passwordRequired, initialAuthed }) {
     setProgress({ current: 0, total: segments.length });
 
     for (let i = 0; i < segments.length; i++) {
-      const seg = segments[i];
-      setSegments((prev) =>
-        prev.map((s) => (s.timestamp === seg.timestamp ? { ...s, status: 'generating', error: null } : s))
-      );
-
-      try {
-        const res = await fetch('/api/generate-image', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            prompt: STYLE_PREFIX + seg.prompt,
-            quality,
-          }),
-        });
-        const data = await res.json();
-        if (!res.ok) {
-          setSegments((prev) =>
-            prev.map((s) =>
-              s.timestamp === seg.timestamp
-                ? { ...s, status: 'error', error: data.error || 'Generation failed' }
-                : s
-            )
-          );
-        } else {
-          const padded = await padImageTo16x9(data.image);
-          setSegments((prev) =>
-            prev.map((s) =>
-              s.timestamp === seg.timestamp ? { ...s, status: 'done', image: padded } : s
-            )
-          );
-        }
-      } catch (err) {
-        setSegments((prev) =>
-          prev.map((s) =>
-            s.timestamp === seg.timestamp
-              ? { ...s, status: 'error', error: err.message || 'Network error' }
-              : s
-          )
-        );
-      }
-
+      await generateImageForSegment(segments[i]);
       setProgress({ current: i + 1, total: segments.length });
     }
 
     setIsGeneratingAll(false);
+  }
+
+  async function handleGenerateOne(timestamp) {
+    const seg = segments.find((s) => s.timestamp === timestamp);
+    if (!seg || !seg.prompt || !seg.prompt.trim()) return;
+    setGlobalError(null);
+    await generateImageForSegment(seg);
   }
 
   function readFileAsDataUrl(file) {
@@ -398,6 +405,7 @@ export default function AppShell({ passwordRequired, initialAuthed }) {
                 segment={seg}
                 onPromptChange={handlePromptChange}
                 onRewrite={handleRewriteOne}
+                onGenerateImage={handleGenerateOne}
                 onDownload={handleDownloadOne}
               />
             ))}
