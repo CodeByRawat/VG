@@ -5,6 +5,12 @@ export default function VideoPanel({
   onImagesUpload,
   audioFile,
   onAudioChange,
+  audioDuration,
+  frames,
+  defaultDurations,
+  totalVideoDuration,
+  onDurationChange,
+  onResetDuration,
   onGenerate,
   isGenerating,
   progress,
@@ -12,6 +18,7 @@ export default function VideoPanel({
   videoExtension,
   error,
 }) {
+  const diff = audioDuration != null ? totalVideoDuration - audioDuration : null;
   return (
     <div className="flex flex-col gap-4">
       <div>
@@ -41,6 +48,73 @@ export default function VideoPanel({
         />
         {audioFile && <p className="text-xs text-muted mt-1">{audioFile.name}</p>}
       </div>
+
+      {frames && frames.length > 0 && (
+        <div className="border-t border-border pt-4">
+          <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
+            <label className="text-xs text-muted">
+              Slide timing — override any slide's length to fine-tune sync
+            </label>
+            <span className="text-xs text-muted">
+              Total: {totalVideoDuration.toFixed(1)}s
+              {diff !== null && (
+                <>
+                  {' · Audio: '}
+                  {audioDuration.toFixed(1)}s{' '}
+                  {Math.abs(diff) < 0.15 ? (
+                    <span className="text-accent">(matched)</span>
+                  ) : diff > 0 ? (
+                    <span className="text-red-400">({diff.toFixed(1)}s longer than audio)</span>
+                  ) : (
+                    <span className="text-red-400">({Math.abs(diff).toFixed(1)}s shorter than audio)</span>
+                  )}
+                </>
+              )}
+            </span>
+          </div>
+
+          <div className="max-h-72 overflow-y-auto flex flex-col gap-2 pr-1">
+            {frames.map((f, i) => {
+              const isOverridden = typeof f.durationOverride === 'number' && f.durationOverride > 0;
+              const effective = isOverridden ? f.durationOverride : defaultDurations[i];
+              return (
+                <div
+                  key={f.timestamp}
+                  className="flex items-center gap-3 bg-bg border border-border rounded-md p-2"
+                >
+                  <img
+                    src={f.image}
+                    alt={f.timestamp}
+                    className="w-14 h-8 object-cover rounded border border-border flex-shrink-0"
+                  />
+                  <span className="text-xs font-mono text-accent w-20 flex-shrink-0">
+                    {f.timestamp}
+                  </span>
+                  <input
+                    type="number"
+                    min="0.1"
+                    step="0.1"
+                    defaultValue={effective}
+                    key={`${f.timestamp}-${effective}`}
+                    onChange={(e) => onDurationChange(f.timestamp, e.target.value)}
+                    className="w-20 px-2 py-1 rounded-md border border-border text-sm text-text bg-bg focus:outline-none focus:border-accent"
+                  />
+                  <span className="text-xs text-muted">sec</span>
+                  {isOverridden && (
+                    <button
+                      type="button"
+                      onClick={() => onResetDuration(f.timestamp)}
+                      className="text-xs text-muted hover:text-accent ml-auto"
+                    >
+                      Reset (auto: {defaultDurations[i]}s)
+                    </button>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       <button
         type="button"

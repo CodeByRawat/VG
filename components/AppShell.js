@@ -9,7 +9,12 @@ import VideoPanel from '@/components/VideoPanel';
 import { parseScript, timestampToFilename, filenameToTimestamp } from '@/lib/parseScript';
 import { STYLE_PREFIX } from '@/lib/constants';
 import { padImageTo16x9, dataUrlToBase64 } from '@/lib/composite';
-import { generateVideo, mimeTypeToExtension, segmentStartSeconds } from '@/lib/video';
+import {
+  generateVideo,
+  mimeTypeToExtension,
+  segmentStartSeconds,
+  computeSegmentDurations,
+} from '@/lib/video';
 import { parseCsv } from '@/lib/csv';
 
 const QUALITIES = ['low', 'medium', 'high'];
@@ -38,6 +43,7 @@ export default function AppShell({ passwordRequired, initialAuthed }) {
   const [globalError, setGlobalError] = useState(null);
 
   const [audioFile, setAudioFile] = useState(null);
+  const [audioDuration, setAudioDuration] = useState(null);
   const [isGeneratingVideo, setIsGeneratingVideo] = useState(false);
   const [videoProgress, setVideoProgress] = useState({ current: 0, total: 0 });
   const [videoUrl, setVideoUrl] = useState(null);
@@ -63,6 +69,7 @@ export default function AppShell({ passwordRequired, initialAuthed }) {
         status: 'idle',
         error: null,
         isRewriting: false,
+        durationOverride: null,
       }))
     );
   }
@@ -101,6 +108,7 @@ export default function AppShell({ passwordRequired, initialAuthed }) {
         status: 'idle',
         error: null,
         isRewriting: false,
+        durationOverride: null,
       });
     });
 
@@ -346,6 +354,7 @@ export default function AppShell({ passwordRequired, initialAuthed }) {
             status: 'done',
             error: null,
             isRewriting: false,
+            durationOverride: null,
           });
         }
       });
@@ -391,6 +400,39 @@ export default function AppShell({ passwordRequired, initialAuthed }) {
     URL.revokeObjectURL(url);
   }
 
+  function handleAudioChange(file) {
+    setAudioFile(file);
+    setAudioDuration(null);
+    if (!file) return;
+
+    const url = URL.createObjectURL(file);
+    const probe = new Audio();
+    probe.addEventListener(
+      'loadedmetadata',
+      () => {
+        setAudioDuration(probe.duration);
+        URL.revokeObjectURL(url);
+      },
+      { once: true }
+    );
+    probe.addEventListener('error', () => URL.revokeObjectURL(url), { once: true });
+    probe.src = url;
+  }
+
+  function handleDurationChange(timestamp, value) {
+    const num = parseFloat(value);
+    if (!Number.isFinite(num) || num <= 0) return;
+    setSegments((prev) =>
+      prev.map((s) => (s.timestamp === timestamp ? { ...s, durationOverride: num } : s))
+    );
+  }
+
+  function handleResetDuration(timestamp) {
+    setSegments((prev) =>
+      prev.map((s) => (s.timestamp === timestamp ? { ...s, durationOverride: null } : s))
+    );
+  }
+
   async function handleGenerateVideo() {
     setVideoError(null);
     setIsGeneratingVideo(true);
@@ -400,6 +442,7 @@ export default function AppShell({ passwordRequired, initialAuthed }) {
         segments,
         audioFile,
         quality,
+        durations: effectiveDurations,
         onProgress: (p) => setVideoProgress(p),
       });
       if (videoUrl) URL.revokeObjectURL(videoUrl);
@@ -415,6 +458,12 @@ export default function AppShell({ passwordRequired, initialAuthed }) {
   const hasSegments = segments.length > 0;
   const allPromptsWritten = hasSegments && segments.every((s) => s.prompt && s.prompt.trim());
   const hasAnyImage = segments.some((s) => s.image);
+  const videoFrames = segments.filter((s) => s.image);
+  const defaultDurations = computeSegmentDurations(videoFrames);
+  const effectiveDurations = videoFrames.map((f, i) =>
+    typeof f.durationOverride === 'number' && f.durationOverride > 0 ? f.durationOverride : defaultDurations[i]
+  );
+  const totalVideoDuration = effectiveDurations.reduce((a, b) => a + b, 0);
 
   return (
     <main className="max-w-5xl mx-auto px-4 py-10 flex flex-col gap-6">
@@ -605,7 +654,13 @@ export default function AppShell({ passwordRequired, initialAuthed }) {
           hasAnyImage={hasAnyImage}
           onImagesUpload={handleUploadImagesForVideo}
           audioFile={audioFile}
-          onAudioChange={setAudioFile}
+          onAudioChange={handleAudioChange}
+          audioDuration={audioDuration}
+          frames={videoFrames}
+          defaultDurations={defaultDurations}
+          totalVideoDuration={totalVideoDuration}
+          onDurationChange={handleDurationChange}
+          onResetDuration={handleResetDuration}
           onGenerate={handleGenerateVideo}
           isGenerating={isGeneratingVideo}
           progress={videoProgress}
