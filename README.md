@@ -16,14 +16,11 @@ per timestamp, generated with OpenAI's API, output as exact 1920x1080
    context.
 3. **Generate images** — only enabled once every segment has a prompt.
    Each prompt (prefixed with a fixed MS-Paint style description) is
-   sent to the configured image provider (`IMAGE_PROVIDER` — either
-   free, keyless Pollinations.ai, or OpenAI's `gpt-image-1`) one at a
-   time, with a progress bar. Neither provider guarantees a true 16:9
+   sent to OpenAI's Images API (`gpt-image-1`, size `1536x1024`) one
+   at a time, with a progress bar. `gpt-image-1` has no true 16:9
    size, so each returned image is immediately composited client-side
    (via `<canvas>`) onto an exact white 1920x1080 frame, scaled to
-   fit the height — this is the only version ever shown or saved (it
-   also re-encodes to genuine PNG regardless of what the provider
-   actually returned, e.g. Pollinations serves JPEG).
+   fit the height — this is the only version ever shown or saved.
 4. **Results** — download any image individually, or all of them at
    once as a ZIP (via `jszip`), named after their timestamp (e.g.
    `0-07.png`, `0-00-0-17.png` for ranges). Every file is a pixel-exact
@@ -36,13 +33,9 @@ per timestamp, generated with OpenAI's API, output as exact 1920x1080
    track with `MediaRecorder`, and offers the result as a downloadable
    video with an inline preview.
 
-The prompt-writing call and the image-generation call both happen in
-serverless API routes (`/api/write-prompts`, `/api/generate-image`) so
-your `OPENAI_API_KEY` never reaches the browser. Image generation goes
-through `lib/imageProviders/` — `openai.js` and `pollinations.js` share
-one function signature (prompt + options in, a PNG/JPEG `Buffer` out),
-dispatched by `index.js` based on `IMAGE_PROVIDER`, so the route itself
-doesn't need to know which backend is active.
+Both OpenAI calls happen in serverless API routes
+(`/api/write-prompts`, `/api/generate-image`) so your `OPENAI_API_KEY`
+never reaches the browser.
 
 ## Local development
 
@@ -59,8 +52,7 @@ Open http://localhost:3000.
 
 | Variable          | Required | Description                                                                                                     |
 | ----------------- | -------- | ----------------------------------------------------------------------------------------------------------------|
-| `IMAGE_PROVIDER`  | No       | `"pollinations"` (default — free, no key needed) or `"openai"` (uses `gpt-image-1`, requires `OPENAI_API_KEY`). Only affects image generation. |
-| `OPENAI_API_KEY`  | Yes, unless you never use "Auto-write visual prompts" | Prompt-writing (`gpt-4o-mini`) always uses OpenAI regardless of `IMAGE_PROVIDER`, so this is still needed for that step. Also used for image generation if `IMAGE_PROVIDER=openai`. Used server-side only, never exposed to the client. |
+| `OPENAI_API_KEY`  | Yes      | Used server-side only, in the two API routes. Never exposed to the client.                                      |
 | `ACCESS_PASSWORD` | No       | If set, a password gate is shown before the tool is usable, so a leaked URL can't burn your OpenAI credits. If unset, the gate is skipped entirely. |
 
 ## Deploying to Vercel
