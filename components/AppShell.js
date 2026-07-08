@@ -19,6 +19,11 @@ import { parseCsv } from '@/lib/csv';
 
 const QUALITIES = ['low', 'medium', 'high'];
 
+const IMAGE_PROVIDERS = [
+  { value: 'openai', label: 'ChatGPT (gpt-image-1)' },
+  { value: 'nanobanana', label: 'Nano Banana (Gemini 2.5 Flash)' },
+];
+
 const CSV_TIMESTAMP_KEYS = ['timestamp'];
 const CSV_NARRATION_KEYS = ['narration_text', 'narration', 'text', 'script'];
 const CSV_PROMPT_KEYS = ['image_prompt', 'prompt', 'visual_prompt', 'scene', 'scene_description'];
@@ -36,6 +41,7 @@ export default function AppShell({ passwordRequired, initialAuthed }) {
   const [scriptText, setScriptText] = useState('');
   const [segments, setSegments] = useState([]);
   const [quality, setQuality] = useState('medium');
+  const [imageProvider, setImageProvider] = useState('openai');
 
   const [isWritingPrompts, setIsWritingPrompts] = useState(false);
   const [isGeneratingAll, setIsGeneratingAll] = useState(false);
@@ -214,6 +220,7 @@ export default function AppShell({ passwordRequired, initialAuthed }) {
         body: JSON.stringify({
           prompt: STYLE_PREFIX + seg.prompt,
           quality,
+          provider: imageProvider,
         }),
       });
       const data = await res.json();
@@ -567,6 +574,21 @@ export default function AppShell({ passwordRequired, initialAuthed }) {
       <StepPanel number={3} title="Generate images">
         <div className="flex flex-wrap items-center gap-3">
           <label className="text-sm text-muted">
+            Provider
+            <select
+              value={imageProvider}
+              onChange={(e) => setImageProvider(e.target.value)}
+              className="ml-2 px-2 py-1.5 rounded-md border border-border text-sm text-text bg-bg focus:outline-none focus:border-accent"
+            >
+              {IMAGE_PROVIDERS.map((p) => (
+                <option key={p.value} value={p.value}>
+                  {p.label}
+                </option>
+              ))}
+            </select>
+          </label>
+
+          <label className="text-sm text-muted">
             Quality
             <select
               value={quality}
@@ -594,6 +616,14 @@ export default function AppShell({ passwordRequired, initialAuthed }) {
         {hasSegments && !allPromptsWritten && (
           <p className="text-xs text-muted mt-2">
             Finish writing a visual prompt for every segment before generating images.
+          </p>
+        )}
+
+        {imageProvider === 'nanobanana' && (
+          <p className="text-xs text-muted mt-2">
+            Nano Banana doesn't use the Quality setting, and needs billing enabled on the
+            associated Google Cloud project — image generation isn't included in the Gemini
+            API free tier.
           </p>
         )}
 
