@@ -1,5 +1,7 @@
 'use client';
 
+import Timeline from '@/components/Timeline';
+
 export default function VideoPanel({
   hasAnyImage,
   onImagesUpload,
@@ -7,10 +9,13 @@ export default function VideoPanel({
   onAudioChange,
   audioDuration,
   frames,
+  durations,
   defaultDurations,
   totalVideoDuration,
   onDurationChange,
   onResetDuration,
+  onDurationPairChange,
+  onResetAllDurations,
   onGenerate,
   isGenerating,
   progress,
@@ -50,12 +55,12 @@ export default function VideoPanel({
       </div>
 
       {frames && frames.length > 0 && (
-        <div className="border-t border-border pt-4">
-          <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
+        <div className="border-t border-border pt-4 flex flex-col gap-3">
+          <div className="flex flex-wrap items-center justify-between gap-2">
             <label className="text-xs text-muted">
-              Slide timing — override any slide's length to fine-tune sync
+              Slide timing — drag a handle on the timeline, or edit a number below
             </label>
-            <span className="text-xs text-muted">
+            <span className="text-xs text-muted flex items-center gap-2">
               Total: {totalVideoDuration.toFixed(1)}s
               {diff !== null && (
                 <>
@@ -70,13 +75,22 @@ export default function VideoPanel({
                   )}
                 </>
               )}
+              <button
+                type="button"
+                onClick={onResetAllDurations}
+                className="text-muted hover:text-accent underline decoration-dotted"
+              >
+                Reset all
+              </button>
             </span>
           </div>
+
+          <Timeline frames={frames} durations={durations} onDurationPairChange={onDurationPairChange} />
 
           <div className="max-h-72 overflow-y-auto flex flex-col gap-2 pr-1">
             {frames.map((f, i) => {
               const isOverridden = typeof f.durationOverride === 'number' && f.durationOverride > 0;
-              const effective = isOverridden ? f.durationOverride : defaultDurations[i];
+              const effective = durations[i];
               return (
                 <div
                   key={f.timestamp}

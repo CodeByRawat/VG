@@ -433,6 +433,27 @@ export default function AppShell({ passwordRequired, initialAuthed }) {
     );
   }
 
+  // Dragging a timeline handle resizes two adjacent slides atomically so
+  // their combined duration (and therefore the overall total) never
+  // drifts mid-drag — only the boundary between them moves.
+  function handleDurationPairChange(index, durationA, durationB) {
+    setSegments((prev) => {
+      const frames = prev.filter((s) => s.image);
+      const segA = frames[index];
+      const segB = frames[index + 1];
+      if (!segA || !segB) return prev;
+      return prev.map((s) => {
+        if (s.timestamp === segA.timestamp) return { ...s, durationOverride: durationA };
+        if (s.timestamp === segB.timestamp) return { ...s, durationOverride: durationB };
+        return s;
+      });
+    });
+  }
+
+  function handleResetAllDurations() {
+    setSegments((prev) => prev.map((s) => ({ ...s, durationOverride: null })));
+  }
+
   async function handleGenerateVideo() {
     setVideoError(null);
     setIsGeneratingVideo(true);
@@ -657,10 +678,13 @@ export default function AppShell({ passwordRequired, initialAuthed }) {
           onAudioChange={handleAudioChange}
           audioDuration={audioDuration}
           frames={videoFrames}
+          durations={effectiveDurations}
           defaultDurations={defaultDurations}
           totalVideoDuration={totalVideoDuration}
           onDurationChange={handleDurationChange}
           onResetDuration={handleResetDuration}
+          onDurationPairChange={handleDurationPairChange}
+          onResetAllDurations={handleResetAllDurations}
           onGenerate={handleGenerateVideo}
           isGenerating={isGeneratingVideo}
           progress={videoProgress}
