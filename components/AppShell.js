@@ -7,7 +7,6 @@ import SegmentCard from '@/components/SegmentCard';
 import ProgressBar from '@/components/ProgressBar';
 import VideoPanel from '@/components/VideoPanel';
 import { parseScript, timestampToFilename, filenameToTimestamp } from '@/lib/parseScript';
-import { STYLE_PREFIX } from '@/lib/constants';
 import { padImageTo16x9, dataUrlToBase64 } from '@/lib/composite';
 import {
   generateVideo,
@@ -218,7 +217,7 @@ export default function AppShell({ passwordRequired, initialAuthed }) {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          prompt: STYLE_PREFIX + seg.prompt,
+          prompt: seg.prompt,
           quality,
           provider: imageProvider,
         }),
